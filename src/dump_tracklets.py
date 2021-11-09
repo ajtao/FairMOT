@@ -10,7 +10,7 @@ import cv2
 import argparse
 import os.path as osp
 
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from PIL import Image
 
 
@@ -20,8 +20,8 @@ parser.add_argument(
     default='/home/atao/devel/FairMOT/demos/womens_clip_2plays_fairmot_dla34_0.3/results.txt', help="Tracking output file"
 )
 parser.add_argument(
-    "--img_root",
-    default='/home/atao/data/vball/womens_clip_2plays',
+    "--vid_fn",
+    default='/home/atao/data/vball/womens_clip_2plays.mp4',
     help="Where to find image frames"
 )
 parser.add_argument(
@@ -122,11 +122,11 @@ def build_tracklets():
                 # start new track
                 tracks[player.tid] = [player]
 
-    # wrap up existing tracklets
+    # Wrap up existing tracklets
     for track in tracks.values():
         tracklets.append(track)
 
-    # postprocess to subsample
+    # Subsample
     sampled_tracklets = []
     for tracklet in tracklets:
         if len(tracklet) < args.sampling_rate:
@@ -157,8 +157,8 @@ class Player():
                         self.center_y >= court_bounds.top and
                         self.center_y <= court_bounds.bot)
 
-    def onscreen(self, l,r,t,b,frame):
-        img_w, img_h = frame.size
+    def onscreen(self, l,r,t,b):
+        img_w, img_h = args.width, args.height
 
         if l<0:
             delta_x = abs(l)
@@ -183,12 +183,7 @@ class Player():
             
         return l, r, t, b
 
-    def crop(self, output_dir, idx):
-        frame_fn = os.path.join(args.img_root, f'{self.fnum:06d}.png')
-        frame = Image.open(frame_fn)
-
-        # crop player from image and save: track_{id}_{frm}.png
-        # adjust aspect ratio =
+    def compute_crop(self):
         aspect = self.h/self.w
         if aspect < self.aspect_goal:
             # need to pad height
@@ -202,8 +197,16 @@ class Player():
         l, t = self.center_x - w//2, self.center_y - h//2
         r, b = l+w, t+h
 
-        l,r,t,b = self.onscreen(l,r,t,b,frame)
-        player = frame.crop((l, t, r, b))
+        l,r,t,b = self.onscreen(l,r,t,b)
+        return l,t,r,b
+
+    def crop(self, output_dir, idx):
+        coords = self.compute_crop()
+
+        frame_fn = os.path.join(args.img_root, f'{self.fnum:06d}.png')
+        frame = Image.open(frame_fn)
+
+        player = frame.crop(coords)
         player = player.resize(args.crop_dims)
         player_fn = f'{output_dir}/{idx:08}.png'
         player.save(player_fn)
@@ -227,9 +230,61 @@ def dump_tracklets(tracklets):
             idx += 1
 
 
+def record_tracklets(tracklets):
+    """
+    Write images out to a folder such that images within a tracklet are
+    grouped together in number/name.
+    """
+    crops_per_frame = defaultdict(list)
+    idx = 0
+    for dir_idx, tracklet in enumerate(tracklets):
+        for player in tracklet:
+            fnum = player.fnum
+            coords = player.compute_crop()
+            crops_per_frame[fnum].append((idx, coords))
+            idx += 1
+
+    return crops_per_frame
+
+
+def crop_frames(crops_per_frame, cap):
+    """
+    Read video frame stream and take crops according to crop_per_frame,
+    which is a per-frame dict of lists of crops
+    """
+    basename = osp.splitext(osp.basename(args.vid_fn))[0]
+    output_dir = osp.join(args.output_root, basename)
+    os.makedirs(output_dir, exist_ok=True)
+    
+    fnum = 1
+    while True:
+        ret_val, frame = cap.read()
+        if ret_val:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame = Image.fromarray(frame)
+            if fnum in crops_per_frame:
+                for crop in crops_per_frame[fnum]:
+                    idx, coords = crop
+                    player_img = frame.crop(coords)
+                    player_img = player_img.resize(args.crop_dims)
+                    player_fn = f'{output_dir}/{idx:08}.jpg'
+                    player_img.save(player_fn)
+                    print(f'wrote crop {player_fn}')
+        else:
+            break
+        fnum += 1
+        
+            
+            
 def main():
+    cap = cv2.VideoCapture(args.vid_fn)
+    args.width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+    args.height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+
     tracklets = build_tracklets()
-    dump_tracklets(tracklets)
+    crops_per_frame = record_tracklets(tracklets)
+    crop_frames(crops_per_frame, cap)
 
 
 main()
