@@ -230,6 +230,9 @@ class JDETracker(object):
         return results
 
     def update(self, im_blob, img0):
+        """
+        im_blob
+        """
         self.frame_id += 1
         activated_starcks = []
         refind_stracks = []

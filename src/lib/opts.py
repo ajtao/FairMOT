@@ -12,6 +12,9 @@ class opts(object):
     # basic experiment setting
     self.parser.add_argument('task', default='mot', help='mot')
     self.parser.add_argument('--dataset', default='jde', help='jde')
+    self.parser.add_argument('--max_seconds', default=None, type=int,
+                             help='max seconds to process from video')
+    self.parser.add_argument('--match_csv', default=None, help='annotated match data')
     self.parser.add_argument('--exp_id', default='default')
     self.parser.add_argument('--test', action='store_true')
     #self.parser.add_argument('--load_model', default='../models/ctdet_coco_dla_2x.pth',

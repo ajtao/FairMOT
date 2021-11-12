@@ -5,7 +5,6 @@ from __future__ import print_function
 import _init_paths
 import os
 import os.path as osp
-import cv2
 import logging
 import argparse
 import motmetrics as mm
@@ -67,19 +66,31 @@ def write_results_score(filename, results, data_type):
     logger.info('save results to {}'.format(filename))
 
 
-def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_image=True, frame_rate=30, use_cuda=True):
-    if save_dir:
-        mkdir_if_missing(save_dir)
+def eval_seq(opt, dataloader, data_type, result_filename, vid_writer, frame_rate=30.038,
+             use_cuda=True, onlyseconds=None):
+
     tracker = JDETracker(opt, frame_rate=frame_rate)
     timer = Timer()
     results = []
+    img_id = 0
     frame_id = 0
-    #for path, img, img0 in dataloader:
-    for i, (path, img, img0) in enumerate(dataloader):
-        #if i % 8 != 0:
-            #continue
+    for frame_id, (path, img, img0) in enumerate(dataloader):
+        # only process times listed within onlyseconds
+        second = int(frame_id / frame_rate)
+        if onlyseconds is not None and second not in onlyseconds:
+            #if vid_writer is not None:
+            #    vid_writer.write(img0)
+            second = frame_id // int(frame_rate)
+            if frame_id == (second // 10) * 10 * int(frame_rate):
+                print(f'skipping @{second}s')
+            continue
+
         if frame_id % 20 == 0:
             logger.info('Processing frame {} ({:.2f} fps)'.format(frame_id, 1. / max(1e-5, timer.average_time)))
+
+        if opt.max_seconds is not None and second > opt.max_seconds:
+            print('Exiting!')
+            break
 
         # run tracking
         timer.tic()
@@ -90,7 +101,6 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
         online_targets = tracker.update(blob, img0)
         online_tlwhs = []
         online_ids = []
-        #online_scores = []
         for t in online_targets:
             tlwh = t.tlwh
             tid = t.track_id
@@ -98,19 +108,18 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
             if tlwh[2] * tlwh[3] > opt.min_box_area and not vertical:
                 online_tlwhs.append(tlwh)
                 online_ids.append(tid)
-                #online_scores.append(t.score)
         timer.toc()
+
         # save results
         results.append((frame_id + 1, online_tlwhs, online_ids))
-        #results.append((frame_id + 1, online_tlwhs, online_ids, online_scores))
-        if show_image or save_dir is not None:
+
+        if vid_writer is not None:
             online_im = vis.plot_tracking(img0, online_tlwhs, online_ids, frame_id=frame_id,
                                           fps=1. / timer.average_time)
-        if show_image:
-            cv2.imshow('online_im', online_im)
-        if save_dir is not None:
-            cv2.imwrite(os.path.join(save_dir, '{:05d}.jpg'.format(frame_id)), online_im)
-        frame_id += 1
+            vid_writer.write(online_im)
+        
+        img_id += 1
+
     # save results
     write_results(result_filename, results, data_type)
     #write_results_score(result_filename, results, data_type)

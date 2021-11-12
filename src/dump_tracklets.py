@@ -29,7 +29,7 @@ parser.add_argument(
     help="output root for image crops"
 )
 parser.add_argument(
-    "--crop_dims", default=(64,128),
+    "--crop_dims", default=(128,256),
     help="target resolution for player crops"
 )
 parser.add_argument(
@@ -37,13 +37,16 @@ parser.add_argument(
     help="how to scale tracker values down to original video resolution"
 )
 parser.add_argument(
-    "--sampling_rate", default=5, type=int,
+    "--sampling_rate", default=15, type=int,
     help="Only sample every N frames"
 )
 args = parser.parse_args()
 
 Court = namedtuple('court', ['top', 'bot', 'left', 'right'])
+# half court:
 court_bounds = Court(320, 680, 32, 1214)
+# full court:
+court_bounds = Court(193, 680, 32, 1214)
 entry_fields = ['fnum', 'tid', 'x', 'y', 'w', 'h']
 num_entries = len(entry_fields)
 TrackEntry = namedtuple('TrackEntry', entry_fields)
