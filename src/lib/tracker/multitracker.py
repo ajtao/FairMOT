@@ -231,7 +231,8 @@ class JDETracker(object):
 
     def update(self, im_blob, img0):
         """
-        im_blob
+        im_blob - letterboxed img
+        img0    - 1920x1080
         """
         self.frame_id += 1
         activated_starcks = []

@@ -85,6 +85,13 @@ class LoadImages:  # for inference
 
 class LoadVideo:  # for inference
     def __init__(self, path, img_size=(1088, 608)):
+        """
+        inputs:
+           path     - path to the video
+           img_size - the size of image fed to the CNN, must be modulo 32
+
+        self.width, self.height are the resolution of the output video
+        """
         self.cap = cv2.VideoCapture(path)
         # self.frame_rate = int(round(self.cap.get(cv2.CAP_PROP_FPS)))
         self.frame_rate = self.cap.get(cv2.CAP_PROP_FPS)
@@ -92,11 +99,18 @@ class LoadVideo:  # for inference
         self.vh = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.vn = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        self.width = img_size[0]
-        self.height = img_size[1]
+        # This image size must be divisible by 32
+        if img_size == -1:
+            self.width = self.vw
+            self.height = self.vh
+        else:
+            self.width = img_size[0]
+            self.height = img_size[1]
         self.count = 0
 
-        self.w, self.h = 1920, 1080
+        # The output video size
+        # self.w, self.h = 1920, 1080
+        self.w, self.h = self.vw, self.vh
         print('Lenth of the video: {:d} frames'.format(self.vn))
 
     def get_size(self, vw, vh, dw, dh):
@@ -241,7 +255,15 @@ class LoadImagesAndLabels:  # for training
 
 
 def letterbox(img, height=608, width=1088,
-              color=(127.5, 127.5, 127.5)):  # resize a rectangular image to a padded rectangular
+              color=(127.5, 127.5, 127.5)):
+    
+    # Resize a rectangular image to a padded rectangular, but preserve aspect ratio
+    # 
+    # return:
+    #   img   - resized + padded image
+    #   ratio - resize ratio for the image
+    #   dw,dh - padding in width, height
+    
     shape = img.shape[:2]  # shape = [height, width]
     ratio = min(float(height) / shape[0], float(width) / shape[1])
     new_shape = (round(shape[1] * ratio), round(shape[0] * ratio))  # new_shape = [width, height]

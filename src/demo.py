@@ -20,10 +20,9 @@ logger.setLevel(logging.INFO)
 
 
 def get_onlyseconds(match_csv):
-    lines = []
     fp = open(match_csv, newline='')
     reader = csv.reader(fp, delimiter=',')
-    
+
     first_line = reader.__next__()
     field2idx = {}
     for idx, field in enumerate(first_line):
@@ -35,10 +34,10 @@ def get_onlyseconds(match_csv):
     last_time = 0
 
     for idx, fields in enumerate(reader):
+        # import pdb; pdb.set_trace()
         video_time = int(fields[field2idx['video_time']])
-        skill      = fields[field2idx['skill']]
-        evaluation = fields[field2idx['evaluation']]
-        
+        skill = fields[field2idx['skill']]
+
         if skill == 'Serve':
             if in_play:
                 for i in range(start_time, last_time+2):
@@ -51,19 +50,19 @@ def get_onlyseconds(match_csv):
     return onlyseconds
 
 
-
 def demo(opt):
     if opt.match_csv is not None:
         onlyseconds = get_onlyseconds(opt.match_csv)
     else:
         onlyseconds = None
-        
+
     result_root = opt.output_root if opt.output_root != '' else '.'
     mkdir_if_missing(result_root)
 
-    print(f'img_size {opt.img_size}')
     logger.info('Starting tracking...')
+    assert os.path.isfile(opt.input_video)
     dataloader = datasets.LoadVideo(opt.input_video, opt.img_size)
+    print(f'img_size {dataloader.w}, {dataloader.h}')
     result_filename = os.path.join(result_root, 'results.txt')
     frame_rate = dataloader.frame_rate
 

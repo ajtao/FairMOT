@@ -120,6 +120,8 @@ class opts(object):
     self.parser.add_argument('--input-video', type=str,
                              default='../videos/MOT16-03.mp4',
                              help='path to the input video')
+    self.parser.add_argument('--img-size', default='1088,608',
+                             help='img size (w,h) passed to model. Set to -1 to maintain video resolution')
     self.parser.add_argument('--output-format', type=str, default='video', help='video or text')
     self.parser.add_argument('--output-root', type=str, default='../demos', help='expected output root path')
 
@@ -229,11 +231,14 @@ class opts(object):
       if opt.reg_offset:
         opt.heads.update({'reg': 2})
       opt.nID = dataset.nID
-      opt.img_size = (1088, 608)
       #opt.img_size = (864, 480)
       #opt.img_size = (576, 320)
     else:
       assert 0, 'task not defined!'
+
+    if opt.img_size != -1:
+      opt.img_size = list(int(x) for x in opt.img_size.split(','))
+      
     print('heads', opt.heads)
     return opt
 

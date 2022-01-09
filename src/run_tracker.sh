@@ -2,7 +2,7 @@
 MODEL=fairmot_dla34
 CONF=0.3
 
-for DSET in BYU_Boise Florida_FAMU
+for DSET in Georgia_Missouri OhioState_Nebraska Northwestern_Illinois Portland_USD
 do
     DATA_ROOT=/home/atao/data/vball/${DSET}
     LOGROOT=/home/atao/output/FairMOT/${DSET}

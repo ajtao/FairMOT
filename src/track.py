@@ -77,13 +77,12 @@ def eval_seq(opt, dataloader, data_type, result_filename, vid_writer, frame_rate
     for frame_id, (path, img, img0) in enumerate(dataloader):
         # only process times listed within onlyseconds
         second = int(frame_id / frame_rate)
-        if onlyseconds is not None and second not in onlyseconds:
-            #if vid_writer is not None:
-            #    vid_writer.write(img0)
-            second = frame_id // int(frame_rate)
-            if frame_id == (second // 10) * 10 * int(frame_rate):
-                print(f'skipping @{second}s')
-            continue
+        if onlyseconds is not None:
+            if second not in onlyseconds:
+                second = frame_id // int(frame_rate)
+                if frame_id == (second // 10) * 10 * int(frame_rate):
+                    print(f'skipping @{second}s')
+                continue
 
         if frame_id % 20 == 0:
             logger.info('Processing frame {} ({:.2f} fps)'.format(frame_id, 1. / max(1e-5, timer.average_time)))
@@ -111,7 +110,8 @@ def eval_seq(opt, dataloader, data_type, result_filename, vid_writer, frame_rate
         timer.toc()
 
         # save results
-        results.append((frame_id + 1, online_tlwhs, online_ids))
+        # results.append((frame_id + 1, online_tlwhs, online_ids))
+        results.append((frame_id, online_tlwhs, online_ids))
 
         if vid_writer is not None:
             online_im = vis.plot_tracking(img0, online_tlwhs, online_ids, frame_id=frame_id,
