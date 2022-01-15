@@ -17,9 +17,21 @@ import csv
 
 
 logger.setLevel(logging.INFO)
-
+                                               # vid first serve    csv
+bias_table = {'Stanford_UCLA': int(1760-610),       # 29:20 = 1760     - 610
+              'Stanford_Minnesota': int(2529-2287), # 42:09 = 2529     - 2287
+              'Stanford_PennState': int(938-1764)}  # 15:38 = 938      - 1764
 
 def get_onlyseconds(match_csv):
+    '''
+    bias to add to video_time
+    '''
+    bias = 0
+    match_name = osp.basename(osp.dirname(match_csv))
+    if match_name in bias_table:
+        bias = bias_table[match_name]
+        print(f'Using time bias {bias}')
+    
     fp = open(match_csv, newline='')
     reader = csv.reader(fp, delimiter=',')
 
@@ -34,19 +46,28 @@ def get_onlyseconds(match_csv):
     last_time = 0
 
     for idx, fields in enumerate(reader):
-        # import pdb; pdb.set_trace()
-        video_time = int(fields[field2idx['video_time']])
+        if not fields[field2idx['video_time']].isnumeric():
+            continue
+        video_time = int(fields[field2idx['video_time']]) + bias
         skill = fields[field2idx['skill']]
+        evaluation = fields[field2idx['evaluation']]
 
         if skill == 'Serve':
-            if in_play:
-                for i in range(start_time, last_time+2):
-                    onlyseconds[i] = 1
+            # Start new play
             start_time = video_time
             in_play = True
 
-        last_time = video_time
+        winning = 'Winning' in evaluation
+        any_error = 'Error' in evaluation
+        terminal_events = [winning, any_error]
 
+        if in_play and sum(terminal_events):
+            in_play = False
+            for i in range(start_time, video_time+1):
+                onlyseconds[i] = 1
+            
+        last_time = video_time
+        
     return onlyseconds
 
 

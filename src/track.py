@@ -87,7 +87,7 @@ def eval_seq(opt, dataloader, data_type, result_filename, vid_writer, frame_rate
         if frame_id % 20 == 0:
             logger.info('Processing frame {} ({:.2f} fps)'.format(frame_id, 1. / max(1e-5, timer.average_time)))
 
-        if opt.max_seconds is not None and second > opt.max_seconds:
+        if opt.max_imgs is not None and img_id > opt.max_imgs:
             print('Exiting!')
             break
 
