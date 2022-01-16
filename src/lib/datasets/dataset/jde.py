@@ -12,6 +12,9 @@ import numpy as np
 import torch
 import copy
 
+from decord import VideoReader
+from decord import cpu as dcpu
+from decord import gpu as dgpu
 from torch.utils.data import Dataset
 from torchvision.transforms import transforms as T
 from cython_bbox import bbox_overlaps as bbox_ious
@@ -122,6 +125,9 @@ class LoadVideo:  # for inference
         self.count = -1
         return self
 
+    def skipto(self, seconds):
+        self.cap.set(cv2.CAP_PROP_POS_FRAMES, seconds*self.frame_rate)
+
     def __next__(self):
         self.count += 1
         if self.count == len(self):
@@ -145,6 +151,81 @@ class LoadVideo:  # for inference
     def __len__(self):
         return self.vn  # number of files
 
+
+class DLoadVideo:
+    def __init__(self, path, img_size=(1088, 608), play_seconds=None):
+        """
+        decord-based loader
+
+        inputs:
+           path     - path to the video
+           img_size - the size of image fed to the CNN, must be modulo 32
+           play_seconds - array of tuples (start-second, end-second) of plays
+
+        self.width, self.height are the resolution of the output video
+        """
+        print(f'Opening video {path} with decord reader ...')
+        self.vr = VideoReader(path, ctx=dcpu(0))
+        self.frame_rate = int(round(self.vr.get_avg_fps()))
+        a_frame = self.vr[0]
+        self.vh, self.vw, _ch  = a_frame.shape
+        self.vn = len(self.vr)
+        self.play_seconds = play_seconds
+        self.num_frames = int(len(self.play_seconds) * self.frame_rate)
+
+        # This image size must be divisible by 32
+        if img_size == -1:
+            self.width = self.vw
+            self.height = self.vh
+        else:
+            self.width = img_size[0]
+            self.height = img_size[1]
+        self.idx = 0
+
+        # The output video size
+        # self.w, self.h = 1920, 1080
+        self.w, self.h = self.vw, self.vh
+        print('Lenth of the video: {:d} frames'.format(self.vn))
+        print(f'Framerate: {self.frame_rate}')
+
+    def __iter__(self):
+        self.idx = 0
+        return self
+    
+    def _true_frame(self):
+        second_tbl_idx = int(self.idx // self.frame_rate)
+        remainder = self.idx % self.frame_rate
+        second = self.play_seconds[second_tbl_idx]
+        frame_num = int(second * self.frame_rate) + remainder
+        return frame_num
+    
+    def __next__(self):
+        if self.idx == self.num_frames:
+            raise StopIteration
+        # Read image
+        true_frame_num = self._true_frame()
+        img0 = self.vr[true_frame_num].asnumpy()
+        # decord is RGB, but cv2 expects BGR
+        img0 = cv2.cvtColor(img0, cv2.COLOR_RGB2BGR)
+        
+        assert img0 is not None, 'Failed to load frame {:d}'.format(self.idx)
+        img0 = cv2.resize(img0, (self.w, self.h))
+
+        # Padded resize
+        img, _, _, _ = letterbox(img0, height=self.height, width=self.width)
+
+        # Normalize RGB
+        img = img[:, :, ::-1].transpose(2, 0, 1)
+        img = np.ascontiguousarray(img, dtype=np.float32)
+        img /= 255.0
+
+        # cv2.imwrite(img_path + '.letterbox.jpg', 255 * img.transpose((1, 2, 0))[:, :, ::-1])  # save letterbox image
+        self.idx += 1
+        return true_frame_num, img, img0
+
+    def __len__(self):
+        return len(self.vr)  # number of files
+    
 
 class LoadImagesAndLabels:  # for training
     def __init__(self, path, img_size=(1088, 608), augment=False, transforms=None):

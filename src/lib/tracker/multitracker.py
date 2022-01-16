@@ -20,6 +20,9 @@ from utils.post_process import ctdet_post_process
 from utils.image import get_affine_transform
 from models.utils import _tranpose_and_gather_feat
 
+torch.backends.cudnn.benchmark = True
+
+
 class STrack(BaseTrack):
     shared_kalman = KalmanFilter()
     def __init__(self, tlwh, score, temp_feat, buffer_size=30):
@@ -187,7 +190,9 @@ class JDETracker(object):
         self.model = load_model(self.model, opt.load_model)
         self.model = self.model.to(opt.device)
         self.model.eval()
-
+        self.null_model = opt.null_model
+        self.saved_output = None
+        
         self.tracked_stracks = []  # type: list[STrack]
         self.lost_stracks = []  # type: list[STrack]
         self.removed_stracks = []  # type: list[STrack]
@@ -252,7 +257,14 @@ class JDETracker(object):
 
         ''' Step 1: Network forward, get detections & embeddings'''
         with torch.no_grad():
-            output = self.model(im_blob)[-1]
+            if self.null_model:
+                if self.saved_output is not None:
+                    output = self.saved_output
+                else:
+                    output = self.model(im_blob)[-1]
+                    self.saved_output = output
+            else:
+                output = self.model(im_blob)[-1]
             hm = output['hm'].sigmoid_()
             wh = output['wh']
             id_feature = output['id']

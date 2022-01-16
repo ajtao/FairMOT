@@ -66,6 +66,59 @@ def write_results_score(filename, results, data_type):
     logger.info('save results to {}'.format(filename))
 
 
+def d_eval_seq(opt, dataloader, data_type, result_filename, vid_writer, frame_rate=30.038,
+                  use_cuda=True):
+
+    tracker = JDETracker(opt, frame_rate=frame_rate)
+    timer = Timer()
+    results = []
+    img_id = 0
+    frame_id = 0
+
+    for frame_id, (true_frame_num, img, img0) in enumerate(dataloader):     
+        
+        if frame_id % 20 == 0:
+            logger.info('Processing frame {} ({:.2f} fps)'.format(true_frame_num, 1. / max(1e-5, timer.average_time)))
+
+        if opt.max_imgs is not None and img_id > opt.max_imgs:
+            print('Exiting!')
+            break
+
+        # run tracking
+        timer.tic()
+        if use_cuda:
+            blob = torch.from_numpy(img).cuda().unsqueeze(0)
+        else:
+            blob = torch.from_numpy(img).unsqueeze(0)
+        online_targets = tracker.update(blob, img0)
+        online_tlwhs = []
+        online_ids = []
+        for t in online_targets:
+            tlwh = t.tlwh
+            tid = t.track_id
+            vertical = tlwh[2] / tlwh[3] > 1.6
+            if tlwh[2] * tlwh[3] > opt.min_box_area and not vertical:
+                online_tlwhs.append(tlwh)
+                online_ids.append(tid)
+        timer.toc()
+
+        # save results
+        # results.append((frame_id + 1, online_tlwhs, online_ids))
+        results.append((true_frame_num, online_tlwhs, online_ids))
+
+        if vid_writer is not None:
+            online_im = vis.plot_tracking(img0, online_tlwhs, online_ids, frame_id=true_frame_num,
+                                          fps=1. / timer.average_time)
+            vid_writer.write(online_im)
+        
+        img_id += 1
+
+    # save results
+    write_results(result_filename, results, data_type)
+    #write_results_score(result_filename, results, data_type)
+    return true_frame_num, timer.average_time, timer.calls
+
+
 def eval_seq(opt, dataloader, data_type, result_filename, vid_writer, frame_rate=30.038,
              use_cuda=True, onlyseconds=None):
 
@@ -75,6 +128,7 @@ def eval_seq(opt, dataloader, data_type, result_filename, vid_writer, frame_rate
     img_id = 0
     frame_id = 0
     for frame_id, (path, img, img0) in enumerate(dataloader):
+        
         # only process times listed within onlyseconds
         second = int(frame_id / frame_rate)
         if onlyseconds is not None:

@@ -54,6 +54,7 @@ class opts(object):
                              help='model architecture. Currently tested'
                                   'resdcn_34 | resdcn_50 | resfpndcn_34 |'
                                   'dla_34 | hrnet_18')
+    self.parser.add_argument('--null_model', action='store_true')
     self.parser.add_argument('--head_conv', type=int, default=-1,
                              help='conv layer channels for output head'
                                   '0 for no conv layer'
@@ -120,6 +121,7 @@ class opts(object):
     self.parser.add_argument('--input-video', type=str,
                              default='../videos/MOT16-03.mp4',
                              help='path to the input video')
+    self.parser.add_argument('--decord', action='store_true', help='use decord video reader')
     self.parser.add_argument('--img-size', default='1088,608',
                              help='img size (w,h) passed to model. Set to -1 to maintain video resolution')
     self.parser.add_argument('--output-format', type=str, default='video', help='video or text')
