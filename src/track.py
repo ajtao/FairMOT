@@ -66,8 +66,8 @@ def write_results_score(filename, results, data_type):
     logger.info('save results to {}'.format(filename))
 
 
-def d_eval_seq(opt, dataloader, data_type, result_filename, vid_writer, frame_rate=30.038,
-                  use_cuda=True):
+def d_eval_seq(opt, dataloader, data_type, result_filename, vid_writer,
+               frame_rate=30.038, use_cuda=True):
 
     tracker = JDETracker(opt, frame_rate=frame_rate)
     timer = Timer()

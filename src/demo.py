@@ -18,18 +18,30 @@ import csv
 
 logger.setLevel(logging.INFO)
                                                # vid first serve    csv
-bias_table = {'Stanford_UCLA': int(1760-610),       # 29:20 = 1760     - 610
-              'Stanford_Minnesota': int(2529-2287), # 42:09 = 2529     - 2287
-              'Stanford_PennState': int(938-1764)}  # 15:38 = 938      - 1764
+bias_table = {
+    'Stanford_UCLA': {
+        'end0': int(1760-610),  # 29:20 = 1760
+        'end1': int(1496-610)   # 24:56 = 1496
+    },
+    'Stanford_Minnesota': {
+        'end0': int(2529-2287),  # 42:09 = 2529     - 2287
+        'end1': 0                # 38:08 = 2288
+    },
+    'Stanford_PennState': {
+        'end0': int(938-1764)    # 15:38 = 938      - 1764
+    }
+}  
 
-def get_onlyseconds(match_csv):
+              
+def get_onlyseconds(match_csv, view):
     '''
     bias to add to video_time
     '''
     bias = 0
     match_name = osp.basename(osp.dirname(match_csv))
     if match_name in bias_table:
-        bias = bias_table[match_name]
+        assert view in bias_table[match_name]
+        bias = bias_table[match_name][view]
         print(f'Using time bias {bias}')
     
     fp = open(match_csv, newline='')
@@ -71,14 +83,15 @@ def get_onlyseconds(match_csv):
     return onlyseconds
 
 
-def get_play_seconds(match_csv):
+def get_play_seconds(match_csv, view):
     '''
     bias to add to video_time
     '''
     bias = 0
     match_name = osp.basename(osp.dirname(match_csv))
     if match_name in bias_table:
-        bias = bias_table[match_name]
+        assert view in bias_table[match_name]
+        bias = bias_table[match_name][view]
         print(f'Using time bias {bias}')
     
     fp = open(match_csv, newline='')
@@ -126,17 +139,19 @@ def demo(opt):
 
     logger.info('Starting tracking...')
     assert os.path.isfile(opt.input_video)
+    view = os.path.splitext(os.path.basename(opt.input_video))[0]
+    
     onlyseconds = None
     if opt.decord:
-        play_seconds = get_play_seconds(opt.match_csv)
+        play_seconds = get_play_seconds(opt.match_csv, view)
         dataloader = datasets.DLoadVideo(opt.input_video, opt.img_size,
                                          play_seconds=play_seconds)
     else:
         if opt.match_csv is not None:
-            onlyseconds = get_onlyseconds(opt.match_csv)
+            onlyseconds = get_onlyseconds(opt.match_csv, view)
         dataloader = datasets.LoadVideo(opt.input_video, opt.img_size)
     print(f'img_size {dataloader.w}, {dataloader.h}')
-    result_filename = os.path.join(result_root, 'tracks.csv')
+    result_filename = os.path.join(result_root, f'{view}.csv')
     frame_rate = dataloader.frame_rate
 
     if opt.output_format == 'video':
@@ -152,7 +167,7 @@ def demo(opt):
 
     if opt.decord:
         d_eval_seq(opt, dataloader, 'mot', result_filename, vid_writer=vid_writer,
-                 frame_rate=frame_rate, use_cuda=opt.gpus!=[-1])
+                   frame_rate=frame_rate, use_cuda=opt.gpus!=[-1])
     else:
         eval_seq(opt, dataloader, 'mot', result_filename, vid_writer=vid_writer,
                  frame_rate=frame_rate, use_cuda=opt.gpus!=[-1], onlyseconds=onlyseconds)
