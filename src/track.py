@@ -31,6 +31,7 @@ def write_results(filename, results, data_type):
         raise ValueError(data_type)
 
     with open(filename, 'w') as f:
+        f.write('frame,id,x1,y1,w,h,1,-1,-1,-1\n')
         for frame_id, tlwhs, track_ids in results:
             if data_type == 'kitti':
                 frame_id -= 1
@@ -61,7 +62,8 @@ def write_results_score(filename, results, data_type):
                     continue
                 x1, y1, w, h = tlwh
                 x2, y2 = x1 + w, y1 + h
-                line = save_format.format(frame=frame_id, id=track_id, x1=x1, y1=y1, x2=x2, y2=y2, w=w, h=h, s=score)
+                line = save_format.format(frame=frame_id, id=track_id, x1=x1,
+                                          y1=y1, x2=x2, y2=y2, w=w, h=h, s=score)
                 f.write(line)
     logger.info('save results to {}'.format(filename))
 
