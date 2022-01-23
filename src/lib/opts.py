@@ -6,6 +6,7 @@ import argparse
 import os
 import sys
 
+
 class opts(object):
   def __init__(self):
     self.parser = argparse.ArgumentParser()
@@ -14,7 +15,10 @@ class opts(object):
     self.parser.add_argument('--dataset', default='jde', help='jde')
     self.parser.add_argument('--max_imgs', default=None, type=int,
                              help='max seconds to process from video')
-    self.parser.add_argument('--match_csv', default=None, help='annotated match data')
+    self.parser.add_argument('--match-name', default=None, help='annotated match data')
+    self.parser.add_argument('--view', type=str, choices=['end0', 'end1'],
+                             help='which video view')
+    
     self.parser.add_argument('--exp_id', default='default')
     self.parser.add_argument('--test', action='store_true')
     #self.parser.add_argument('--load_model', default='../models/ctdet_coco_dla_2x.pth',
@@ -118,10 +122,6 @@ class opts(object):
     self.parser.add_argument('--nms_thres', type=float, default=0.4, help='iou thresh for nms')
     self.parser.add_argument('--track_buffer', type=int, default=30, help='tracking buffer')
     self.parser.add_argument('--min-box-area', type=float, default=100, help='filter out tiny boxes')
-    self.parser.add_argument('--input-video', type=str,
-                             default='../videos/MOT16-03.mp4',
-                             help='path to the input video')
-    self.parser.add_argument('--decord', action='store_true', help='use decord video reader')
     self.parser.add_argument('--img-size', default='1088,608',
                              help='img size (w,h) passed to model. Set to -1 to maintain video resolution')
     self.parser.add_argument('--output-format', type=str, default='video', help='video or text')

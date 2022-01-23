@@ -75,10 +75,11 @@ def d_eval_seq(opt, dataloader, data_type, result_filename, vid_writer,
     img_id = 0
     frame_id = 0
 
-    for frame_id, (true_frame_num, img, img0) in enumerate(dataloader):     
-        
+    for frame_id, (true_frame_num, img, img0) in enumerate(dataloader):
+
         if frame_id % 20 == 0:
-            logger.info('Processing frame {} ({:.2f} fps)'.format(true_frame_num, 1. / max(1e-5, timer.average_time)))
+            logger.info('Processing frame {} ({:.2f} fps)'.format(
+                true_frame_num, 1. / max(1e-5, timer.average_time)))
 
         if opt.max_imgs is not None and img_id > opt.max_imgs:
             print('Exiting!')
@@ -103,19 +104,18 @@ def d_eval_seq(opt, dataloader, data_type, result_filename, vid_writer,
         timer.toc()
 
         # save results
-        # results.append((frame_id + 1, online_tlwhs, online_ids))
         results.append((true_frame_num, online_tlwhs, online_ids))
 
         if vid_writer is not None:
-            online_im = vis.plot_tracking(img0, online_tlwhs, online_ids, frame_id=true_frame_num,
+            online_im = vis.plot_tracking(img0, online_tlwhs, online_ids,
+                                          frame_id=true_frame_num,
                                           fps=1. / timer.average_time)
             vid_writer.write(online_im)
-        
+
         img_id += 1
 
     # save results
     write_results(result_filename, results, data_type)
-    #write_results_score(result_filename, results, data_type)
     return true_frame_num, timer.average_time, timer.calls
 
 
