@@ -10,6 +10,7 @@ import argparse
 import motmetrics as mm
 import numpy as np
 import torch
+import cv2
 
 from tracker.multitracker import JDETracker
 from tracking_utils import visualization as vis
@@ -68,8 +69,8 @@ def write_results_score(filename, results, data_type):
     logger.info('save results to {}'.format(filename))
 
 
-def d_eval_seq(opt, dataloader, data_type, result_filename, vid_writer,
-               frame_rate=30.038, use_cuda=True):
+def d_eval_seq(opt, dataloader, data_type, result_root, view, result_filename,
+               vid_writer, frame_rate=30.038, use_cuda=True):
 
     tracker = JDETracker(opt, frame_rate=frame_rate)
     timer = Timer()
@@ -79,13 +80,14 @@ def d_eval_seq(opt, dataloader, data_type, result_filename, vid_writer,
 
     for frame_id, (true_frame_num, img, img0) in enumerate(dataloader):
 
+        # save a frame of video
+        if frame_id == 0:
+            frame_fn = osp.join(result_root, f'{view}_frame.png')
+            cv2.imwrite(frame_fn, img0)
+
         if frame_id % 20 == 0:
             logger.info('Processing frame {} ({:.2f} fps)'.format(
                 true_frame_num, 1. / max(1e-5, timer.average_time)))
-
-        if opt.max_imgs is not None and img_id > opt.max_imgs:
-            print('Exiting!')
-            break
 
         # run tracking
         timer.tic()

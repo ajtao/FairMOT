@@ -13,8 +13,8 @@ class opts(object):
     # basic experiment setting
     self.parser.add_argument('task', default='mot', help='mot')
     self.parser.add_argument('--dataset', default='jde', help='jde')
-    self.parser.add_argument('--max_imgs', default=None, type=int,
-                             help='max seconds to process from video')
+    self.parser.add_argument('--max_plays', default=None, type=int,
+                             help='max plays to process from video')
     self.parser.add_argument('--match-name', default=None, help='annotated match data')
     self.parser.add_argument('--view', type=str, choices=['end0', 'end1'],
                              help='which video view')
