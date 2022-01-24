@@ -12,16 +12,18 @@ from tracking_utils.log import logger
 import datasets.dataset.jde as datasets
 from track import d_eval_seq
 
-from vtrak.match_config import read_cfg, get_play_seconds, get_vid_name
+from vtrak.match_config import get_play_seconds, get_vid_name
+from vtrak.config import cfg
+
 
 logger.setLevel(logging.INFO)
 
 
 def demo(opt):
-    read_cfg()
-
-    result_root = opt.output_root if opt.output_root != '' else '.'
+    result_root = osp.join(cfg.output_root, 'fairmot')
     mkdir_if_missing(result_root)
+
+    opt.load_model = osp.join(cfg.checkpoints, 'FairMOT', opt.load_model)
 
     logger.info('Starting tracking...')
     input_video = get_vid_name(opt.match_name, opt.view)

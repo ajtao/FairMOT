@@ -21,10 +21,8 @@ class opts(object):
     
     self.parser.add_argument('--exp_id', default='default')
     self.parser.add_argument('--test', action='store_true')
-    #self.parser.add_argument('--load_model', default='../models/ctdet_coco_dla_2x.pth',
-                             #help='path to pretrained model')
-    self.parser.add_argument('--load_model', default='',
-                             help='path to pretrained model')
+    self.parser.add_argument('--load_model', default='fairmot_dla34.pth',
+                             help='name of pretrained model')
     self.parser.add_argument('--resume', action='store_true',
                              help='resume an experiment. '
                                   'Reloaded the optimizer parameter and '
