@@ -20,7 +20,7 @@ logger.setLevel(logging.INFO)
 
 
 def demo(opt):
-    result_root = osp.join(cfg.output_root, 'fairmot')
+    result_root = osp.join(cfg.output_root, 'fairmot', opt.match_name)
     mkdir_if_missing(result_root)
 
     opt.load_model = osp.join(cfg.checkpoints, 'FairMOT', opt.load_model)
