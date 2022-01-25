@@ -162,6 +162,7 @@ class CLoadVideo:  # for inference
 
         self.width, self.height are the resolution of the output video
         """
+        print(f'Loading video {path} ...')
         self.cap = cv2.VideoCapture(path)
         self.frame_rate = int(round(self.cap.get(cv2.CAP_PROP_FPS)))
         self.vw = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
