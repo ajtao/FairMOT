@@ -10,13 +10,13 @@ import cv2
 import json
 import numpy as np
 import torch
+import torchvision
 import copy
 
 from decord import VideoReader
 from decord import cpu as dcpu
 from decord import gpu as dgpu
 from torch.utils.data import Dataset
-from torchvision.transforms import transforms as T
 from cython_bbox import bbox_overlaps as bbox_ious
 from opts import opts
 from utils.image import gaussian_radius, draw_umich_gaussian, draw_msra_gaussian
@@ -150,6 +150,99 @@ class LoadVideo:  # for inference
 
     def __len__(self):
         return self.vn  # number of files
+
+
+class TLoadVideo:
+    def __init__(self, path, img_size=(1088, 608), play_seconds=None):
+        """
+        torch-based loader
+
+        inputs:
+           path     - path to the video
+           img_size - the size of image fed to the CNN, must be modulo 32
+           play_seconds - array of tuples (start-second, end-second) of plays
+
+        self.width, self.height are the resolution of the output video
+        """
+        self.vr = torchvision.io.VideoReader(path, 'video')
+        reader_md = self.vr.get_metadata()
+        self.frame_rate = int(round(reader_md['video']['fps'][0]))
+        print(f'Opened video {path} @ {self.frame_rate} with '
+              'torchvision.VideoReader reader ...')
+        a_frame = self.get_a_frame()
+        self.vh, self.vw, _ch = a_frame.shape
+        self.vid_num_frames = int(self.frame_rate *
+                                  reader_md['video']['duration'][0])
+        self.play_seconds = play_seconds
+        self.num_frames = int(len(self.play_seconds) * self.frame_rate)
+
+        # This image size must be divisible by 32
+        if img_size == -1:
+            self.width = self.vw
+            self.height = self.vh
+        else:
+            self.width = img_size[0]
+            self.height = img_size[1]
+        self.idx = 0
+
+        # The output video size
+        # self.w, self.h = 1920, 1080
+        self.w, self.h = self.vw, self.vh
+        print('Lenth of the video: {:d} frames'.format(self.vid_num_frames))
+        print(f'Framerate: {self.frame_rate}')
+
+        self.last_true_frame_num = -100
+
+    def get_a_frame(self):
+        frame = next(self.vr)
+        assert frame is not None, 'Failed to load frame {:d}'.format(self.idx)
+        img = frame['data'].permute(1, 2, 0).numpy()
+        return cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+    def __iter__(self):
+        self.idx = 0
+        return self
+
+    def _idx_to_true_frame_sec(self):
+        '''
+        Convert object index into video frame, second
+        '''
+        second_tbl_idx = int(self.idx // self.frame_rate)
+        remainder = self.idx % self.frame_rate
+        second = self.play_seconds[second_tbl_idx]
+        frame_num = int(second * self.frame_rate) + remainder
+        return frame_num, second
+
+    def __next__(self):
+        '''
+        self.idx - the iterator index for this object
+        '''
+        if self.idx == self.num_frames:
+            raise StopIteration
+
+        true_frame_num, second = self._idx_to_true_frame_sec()
+
+        # seek forward if there's a skip
+        if true_frame_num != (self.last_true_frame_num + 1):
+            self.vr = self.vr.seek(second)
+
+        img0 = self.get_a_frame()
+        img0 = cv2.resize(img0, (self.w, self.h))
+
+        # Padded resize
+        img, _, _, _ = letterbox(img0, height=self.height, width=self.width)
+
+        # Normalize RGB
+        img = img[:, :, ::-1].transpose(2, 0, 1)
+        img = np.ascontiguousarray(img, dtype=np.float32)
+        img /= 255.0
+
+        self.idx += 1
+        self.last_true_frame_num = true_frame_num
+        return true_frame_num, img, img0
+
+    def __len__(self):
+        return self.play_seconds * self.frame_rate
 
 
 class DLoadVideo:

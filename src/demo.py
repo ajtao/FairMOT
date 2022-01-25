@@ -26,10 +26,11 @@ def demo(opt):
     opt.load_model = osp.join(cfg.checkpoints, 'FairMOT', opt.load_model)
 
     logger.info('Starting tracking...')
+    print(f'Max plays {opt.max_plays}')
     input_video = get_vid_name(opt.match_name, opt.view)
     play_seconds = get_play_seconds(opt.match_name, opt.view,
                                     max_plays=opt.max_plays)
-    dataloader = datasets.DLoadVideo(input_video, opt.img_size,
+    dataloader = datasets.TLoadVideo(input_video, opt.img_size,
                                      play_seconds=play_seconds)
     print(f'img_size: {opt.img_size}')
     result_filename = os.path.join(result_root, f'{opt.view}.csv')
