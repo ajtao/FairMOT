@@ -24,7 +24,9 @@ from opts import opts
 
 
 def write_results(filename, results, data_type):
-    if data_type == 'mot':
+    if data_type == 'vball':
+        save_format = '{frame},{id},{x1},{y1},{w},{h},{play},-1,-1,-1\n'
+    elif data_type == 'mot':
         save_format = '{frame},{id},{x1},{y1},{w},{h},1,-1,-1,-1\n'
     elif data_type == 'kitti':
         save_format = '{frame} {id} pedestrian 0 0 -10 {x1} {y1} {x2} {y2} -10 -10 -10 -1000 -1000 -1000 -10\n'
@@ -32,8 +34,8 @@ def write_results(filename, results, data_type):
         raise ValueError(data_type)
 
     with open(filename, 'w') as f:
-        f.write('frame,id,x1,y1,w,h,1,-1,-1,-1\n')
-        for frame_id, tlwhs, track_ids in results:
+        f.write('frame,id,x1,y1,w,h,play,-1,-1,-1\n')
+        for frame_id, play_num, tlwhs, track_ids in results:
             if data_type == 'kitti':
                 frame_id -= 1
             for tlwh, track_id in zip(tlwhs, track_ids):
@@ -41,7 +43,9 @@ def write_results(filename, results, data_type):
                     continue
                 x1, y1, w, h = tlwh
                 x2, y2 = x1 + w, y1 + h
-                line = save_format.format(frame=frame_id, id=track_id, x1=x1, y1=y1, x2=x2, y2=y2, w=w, h=h)
+                line = save_format.format(frame=frame_id, id=track_id, x1=x1,
+                                          y1=y1, x2=x2, y2=y2, w=w, h=h,
+                                          play=play_num)
                 f.write(line)
     logger.info('save results to {}'.format(filename))
 
@@ -64,7 +68,8 @@ def write_results_score(filename, results, data_type):
                 x1, y1, w, h = tlwh
                 x2, y2 = x1 + w, y1 + h
                 line = save_format.format(frame=frame_id, id=track_id, x1=x1,
-                                          y1=y1, x2=x2, y2=y2, w=w, h=h, s=score)
+                                          y1=y1, x2=x2, y2=y2, w=w, h=h,
+                                          s=score)
                 f.write(line)
     logger.info('save results to {}'.format(filename))
 
@@ -75,19 +80,17 @@ def d_eval_seq(opt, dataloader, data_type, result_root, view, result_filename,
     tracker = JDETracker(opt, frame_rate=frame_rate)
     timer = Timer()
     results = []
-    img_id = 0
-    frame_id = 0
 
-    for frame_id, (true_frame_num, img, img0) in enumerate(dataloader):
+    for num_frames, (vid_fnum, play_num, img, img0) in enumerate(dataloader):
 
         # save a frame of video
-        if frame_id == 0:
+        if num_frames == 0:
             frame_fn = osp.join(result_root, f'{view}_frame.png')
             cv2.imwrite(frame_fn, img0)
 
-        if frame_id % 20 == 0:
+        if num_frames % 20 == 0:
             logger.info('Processing frame {} ({:.2f} fps)'.format(
-                true_frame_num, 1. / max(1e-5, timer.average_time)))
+                vid_fnum, 1. / max(1e-5, timer.average_time)))
 
         # run tracking
         timer.tic()
@@ -108,23 +111,22 @@ def d_eval_seq(opt, dataloader, data_type, result_root, view, result_filename,
         timer.toc()
 
         # save results
-        results.append((true_frame_num, online_tlwhs, online_ids))
+        results.append((vid_fnum, play_num, online_tlwhs, online_ids))
 
         if vid_writer is not None:
             online_im = vis.plot_tracking(img0, online_tlwhs, online_ids,
-                                          frame_id=true_frame_num,
+                                          frame_id=vid_fnum,
+                                          play_num=play_num,
                                           fps=1. / timer.average_time)
             vid_writer.write(online_im)
 
-        img_id += 1
-
     # save results
     write_results(result_filename, results, data_type)
-    return true_frame_num, timer.average_time, timer.calls
+    return vid_fnum, timer.average_time, timer.calls
 
 
-def eval_seq(opt, dataloader, data_type, result_filename, vid_writer, frame_rate=30.038,
-             use_cuda=True, onlyseconds=None):
+def eval_seq(opt, dataloader, data_type, result_filename, vid_writer,
+             frame_rate=30.038, use_cuda=True, onlyseconds=None):
 
     tracker = JDETracker(opt, frame_rate=frame_rate)
     timer = Timer()
